@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.venv/
+venv/
+ENV/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Env/Secrets
+.env
+.env.*
+*.env
+
+# Flask/Project artifacts
+instance/
+*.sqlite3
+
+# User uploads and generated audio
+uploads/
+static/audio/
+
+# Caches/Logs
+*.log
+.cache/
+.pytest_cache/

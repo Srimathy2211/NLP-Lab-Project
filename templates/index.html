@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document-to-Speech Assistant</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/modern-normalize/2.0.0/modern-normalize.min.css">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#f6f7fb; color:#111; }
+    .container { max-width: 860px; margin: 40px auto; background:#fff; padding: 24px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.06); }
+    h1 { margin-top: 0; font-size: 28px; }
+    .card { background:#fafafa; border:1px solid #eee; border-radius: 12px; padding:16px; margin: 12px 0; }
+    label { display:block; margin: 10px 0 6px; font-weight: 600; }
+    input[type="file"] { padding:10px; background:#fff; border:1px dashed #bbb; border-radius: 8px; width:100%; }
+    .row { display:flex; gap:12px; flex-wrap: wrap; }
+    .col { flex:1; min-width: 220px; }
+    .actions { display:flex; gap:12px; align-items:center; }
+    button { background:#1f6feb; color:#fff; border:none; border-radius:10px; padding:10px 16px; cursor:pointer; font-weight:600; }
+    button:hover { filter: brightness(0.95); }
+    button:disabled { background:#ccc; cursor:not-allowed; }
+    .translate-btn { background:#28a745; }
+    .translate-btn:hover { filter: brightness(0.95); }
+    .listen-btn { background:#ff6b35; margin-left: 12px; }
+    .listen-btn:hover { filter: brightness(0.95); }
+    .translate-section { background:#f0f8ff; border:1px solid #1f6feb; border-radius: 8px; padding: 16px; margin: 16px 0; }
+    .language-selector { display: flex; gap: 12px; align-items: center; margin: 12px 0; }
+    .language-selector select { padding: 8px; border-radius: 6px; border: 1px solid #ddd; }
+    .language-selector input { padding: 8px; border-radius: 6px; border: 1px solid #ddd; width: 80px; }
+    audio { width:100%; margin-top: 6px; }
+    .note { font-size: 13px; color:#666; }
+    .badge { display:inline-block; background:#eef2ff; color:#1f3a8a; padding:4px 8px; border-radius:999px; font-size:12px; margin-right: 8px; }
+    .footer { font-size: 12px; color:#666; text-align:center; margin-top: 20px; }
+    h3 { margin: 16px 0 8px 0; font-size: 18px; color: #333; }
+    .text-display { background: #f8f9fa; padding: 12px; border-radius: 8px; max-height: 200px; overflow-y: auto; line-height: 1.5; }
+    .translated-text { border-left: 4px solid #1f6feb; }
+    .original-text { border-left: 4px solid #28a745; }
+    .loading { display: inline-block; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #1f6feb; border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🗣️ Document-to-Speech Assistant</h1>
+    <p>Upload a PDF, DOCX, TXT, or image. We'll extract the text and read it aloud. Optional: summarize & translate.</p>
+
+    <form method="POST" enctype="multipart/form-data" class="card">
+      <label for="file">Choose file</label>
+      <input type="file" id="file" name="file" required>
+      <div class="row">
+        <div class="col">
+          <label><input type="checkbox" name="want_summary"> Summarize before audio</label>
+          <span class="note">Uses a lightweight summarizer (if available).</span>
+        </div>
+      </div>
+      <div class="actions">
+        <button type="submit">Upload → Extract Text</button>
+        <span class="note">Max 25 MB. Allowed: pdf, docx, txt, png, jpg, jpeg, tiff.</span>
+      </div>
+    </form>
+
+    {% if original_text %}
+    <div class="card">
+      <div>
+        <span class="badge">Source: {{ src_lang or 'unknown' }}</span>
+        {% if translated_text %}<span class="badge">Target: {{ target_lang or 'unknown' }}</span>{% endif %}
+        <span class="badge">{{ chars }} chars</span>
+      </div>
+      
+      <div style="margin: 16px 0;">
+        <h3>📄 Extracted Text</h3>
+        <div class="text-display original-text">
+          {{ original_text[:1000] }}{% if original_text|length > 1000 %}...{% endif %}
+        </div>
+        <!-- Keep full original text hidden for accurate translation requests -->
+        <textarea id="fullOriginalText" style="display:none;">{{ original_text }}</textarea>
+      </div>
+      
+      {% if translated_text %}
+      <div style="margin: 16px 0;" id="translatedSection">
+        <h3>📖 Translated Text</h3>
+        <div class="text-display translated-text" id="injectedTranslated">
+          {{ translated_text }}
+        </div>
+        <div style="margin: 16px 0;">
+          <h4>🎵 Listen to Translation</h4>
+          <button id="listenBtn" class="listen-btn" onclick="generateAudio()">
+            <span id="listenText">🔊 Generate Audio</span>
+            <span id="listenLoading" class="loading" style="display: none;"></span>
+          </button>
+        </div>
+      </div>
+      {% else %}
+      <div style="margin: 16px 0; display:none;" id="translatedSection">
+        <h3>📖 Translated Text</h3>
+        <div class="text-display translated-text" id="injectedTranslated"></div>
+        <div style="margin: 16px 0;">
+          <h4>🎵 Listen to Translation</h4>
+          <button id="listenBtn" class="listen-btn" onclick="generateAudio()">
+            <span id="listenText">🔊 Generate Audio</span>
+            <span id="listenLoading" class="loading" style="display: none;"></span>
+          </button>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Client-injected audio player (hidden until audio generated) -->
+      <div id="audioSection" style="display:none; margin-top: 12px;">
+        <audio id="generatedAudio" controls></audio>
+        <p class="note">Audio generated from translated text</p>
+      </div>
+      {% if audio_url %}
+      <div id="audioSectionServer" style="margin-top: 12px;">
+        <audio controls src="{{ audio_url }}"></audio>
+        <p class="note">Audio generated from translated text</p>
+      </div>
+      {% endif %}
+      
+      <!-- Translation Section -->
+      <div class="translate-section">
+        <h3>🌐 Translate Document</h3>
+        <div class="language-selector">
+          <label>Translate to:</label>
+          <select id="targetLang">
+            <option value="hi">Hindi (hi)</option>
+            <option value="ta">Tamil (ta)</option>
+            <option value="es">Spanish (es)</option>
+            <option value="fr">French (fr)</option>
+            <option value="de">German (de)</option>
+            <option value="en">English (en)</option>
+            <option value="custom">Custom...</option>
+          </select>
+          <input type="text" id="customLang" placeholder="e.g., ja, ko" style="display: none;">
+        </div>
+        <button id="translateBtn" type="button" class="translate-btn" onclick="translateDocument()">
+          <span id="translateText">🔄 Translate Now</span>
+          <span id="translateLoading" class="loading" style="display: none;"></span>
+        </button>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="footer">Built with Flask · OCR + NLP + TTS pipeline</div>
+  </div>
+
+  <script>
+    // Handle custom language input (only if translate UI is present)
+    const targetSelect = document.getElementById('targetLang');
+    if (targetSelect) {
+      targetSelect.addEventListener('change', function() {
+        const customInput = document.getElementById('customLang');
+        if (this.value === 'custom') {
+          customInput.style.display = 'inline-block';
+          customInput.focus();
+        } else {
+          customInput.style.display = 'none';
+        }
+      });
+    }
+
+    // Translation function
+    function translateDocument() {
+      const selectEl = document.getElementById('targetLang');
+      const customEl = document.getElementById('customLang');
+      const fullTextEl = document.getElementById('fullOriginalText');
+      if (!selectEl) return; // translate UI not present
+
+      const targetLang = selectEl.value;
+      const customLang = customEl ? customEl.value : '';
+      const finalLang = targetLang === 'custom' ? customLang : targetLang;
+      
+      if (!finalLang || finalLang.trim() === '') {
+        alert('Please select or enter a target language');
+        return;
+      }
+
+      // Show loading state
+      const btn = document.getElementById('translateBtn');
+      const btnText = document.getElementById('translateText');
+      const loading = document.getElementById('translateLoading');
+      
+      if (btn) btn.disabled = true;
+      if (btnText) btnText.style.display = 'none';
+      if (loading) loading.style.display = 'inline-block';
+
+      // Clear any previously shown translated text to avoid confusion
+      const sec = document.getElementById('translatedSection');
+      const box = document.getElementById('injectedTranslated');
+      if (sec && box) {
+        box.textContent = '';
+        sec.style.display = 'none';
+      }
+
+      // Send translation request (server will read text from session unless we send full text)
+      fetch('/translate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin',
+        cache: 'no-store',
+        body: JSON.stringify({
+          target_lang: finalLang,
+          text: fullTextEl ? fullTextEl.value : undefined
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          // Inject translated text without full reload
+          const sec = document.getElementById('translatedSection');
+          const box = document.getElementById('injectedTranslated');
+          if (sec && box) {
+            box.textContent = data.translated_text || '';
+            sec.style.display = 'block';
+          } else {
+            // Fallback if elements are missing
+            location.reload();
+          }
+        } else {
+          alert('Translation failed: ' + (data.error || 'Unknown error'));
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('Translation failed. Please try again.');
+      })
+      .finally(() => {
+        // Reset button state
+        if (btn) btn.disabled = false;
+        if (btnText) btnText.style.display = 'inline-block';
+        if (loading) loading.style.display = 'none';
+      });
+    }
+
+    // Audio generation function
+    function generateAudio() {
+      const btn = document.getElementById('listenBtn');
+      const btnText = document.getElementById('listenText');
+      const loading = document.getElementById('listenLoading');
+      
+      if (!btn) return;
+      
+      // Show loading state
+      btn.disabled = true;
+      btnText.style.display = 'none';
+      loading.style.display = 'inline-block';
+
+      // Get translated text from the displayed content
+      const translatedTextElement = document.querySelector('.translated-text');
+      const translatedText = translatedTextElement ? translatedTextElement.textContent.trim() : '';
+      
+      // Get target language from the language selector
+      const langSelector = document.getElementById('targetLang');
+      const targetLang = langSelector ? langSelector.value : '';
+      
+      if (!translatedText) {
+        alert('No translated text found. Please translate first.');
+        return;
+      }
+      
+      if (!targetLang) {
+        alert('No target language found. Please translate first.');
+        return;
+      }
+      
+      console.log('Sending audio request:', { text: translatedText.substring(0, 50) + '...', target_lang: targetLang });
+      
+      // Send audio generation request
+      fetch('/generate-audio', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          text: translatedText,
+          target_lang: targetLang
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          // Show audio player immediately without full reload
+          const sec = document.getElementById('audioSection');
+          const audioEl = document.getElementById('generatedAudio');
+          if (sec && audioEl && data.audio_url) {
+            audioEl.src = data.audio_url;
+            sec.style.display = 'block';
+            try { audioEl.load(); } catch (e) {}
+          } else {
+            // Fallback if elements missing
+            location.reload();
+          }
+        } else {
+          alert('Audio generation failed: ' + (data.error || 'Unknown error'));
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('Audio generation failed. Please try again.');
+      })
+      .finally(() => {
+        // Reset button state
+        btn.disabled = false;
+        btnText.style.display = 'inline-block';
+        loading.style.display = 'none';
+      });
+    }
+  </script>
+</body>
+</html>
