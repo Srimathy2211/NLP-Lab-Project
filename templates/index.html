@@ -6,64 +6,428 @@
   <title>Document-to-Speech Assistant</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/modern-normalize/2.0.0/modern-normalize.min.css">
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#f6f7fb; color:#111; }
-    .container { max-width: 860px; margin: 40px auto; background:#fff; padding: 24px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.06); }
-    h1 { margin-top: 0; font-size: 28px; }
-    .card { background:#fafafa; border:1px solid #eee; border-radius: 12px; padding:16px; margin: 12px 0; }
-    label { display:block; margin: 10px 0 6px; font-weight: 600; }
-    input[type="file"] { padding:10px; background:#fff; border:1px dashed #bbb; border-radius: 8px; width:100%; }
-    .row { display:flex; gap:12px; flex-wrap: wrap; }
-    .col { flex:1; min-width: 220px; }
-    .actions { display:flex; gap:12px; align-items:center; }
-    button { background:#1f6feb; color:#fff; border:none; border-radius:10px; padding:10px 16px; cursor:pointer; font-weight:600; }
-    button:hover { filter: brightness(0.95); }
-    button:disabled { background:#ccc; cursor:not-allowed; }
-    .translate-btn { background:#28a745; }
-    .translate-btn:hover { filter: brightness(0.95); }
-    .listen-btn { background:#ff6b35; margin-left: 12px; }
-    .listen-btn:hover { filter: brightness(0.95); }
-    .translate-section { background:#f0f8ff; border:1px solid #1f6feb; border-radius: 8px; padding: 16px; margin: 16px 0; }
-    .language-selector { display: flex; gap: 12px; align-items: center; margin: 12px 0; }
-    .language-selector select { padding: 8px; border-radius: 6px; border: 1px solid #ddd; }
-    .language-selector input { padding: 8px; border-radius: 6px; border: 1px solid #ddd; width: 80px; }
-    audio { width:100%; margin-top: 6px; }
-    .note { font-size: 13px; color:#666; }
-    .badge { display:inline-block; background:#eef2ff; color:#1f3a8a; padding:4px 8px; border-radius:999px; font-size:12px; margin-right: 8px; }
-    .footer { font-size: 12px; color:#666; text-align:center; margin-top: 20px; }
-    h3 { margin: 16px 0 8px 0; font-size: 18px; color: #333; }
-    .text-display { background: #f8f9fa; padding: 12px; border-radius: 8px; max-height: 200px; overflow-y: auto; line-height: 1.5; }
-    .translated-text { border-left: 4px solid #1f6feb; }
-    .original-text { border-left: 4px solid #28a745; }
-    .loading { display: inline-block; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #1f6feb; border-radius: 50%; animation: spin 1s linear infinite; }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    :root {
+      --primary-bg: #0a0a0f;
+      --secondary-bg: #1a1a2e;
+      --tertiary-bg: #16213e;
+      --accent-blue: #00d4ff;
+      --accent-blue-dark: #0099cc;
+      --accent-purple: #6366f1;
+      --text-primary: #ffffff;
+      --text-secondary: #a1a1aa;
+      --text-muted: #71717a;
+      --border-color: #27272a;
+      --glass-bg: rgba(255, 255, 255, 0.05);
+      --glass-border: rgba(255, 255, 255, 0.1);
+      --shadow-glow: 0 0 20px rgba(0, 212, 255, 0.3);
+      --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, var(--primary-bg) 0%, var(--secondary-bg) 50%, var(--tertiary-bg) 100%);
+      color: var(--text-primary);
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at 20% 80%, rgba(0, 212, 255, 0.1) 0%, transparent 50%),
+                  radial-gradient(circle at 80% 20%, rgba(99, 102, 241, 0.1) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      position: relative;
+    }
+
+    h1 {
+      font-size: 3.5rem;
+      font-weight: 800;
+      text-align: center;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 1.2rem;
+      color: var(--text-secondary);
+      margin-bottom: 3rem;
+      font-weight: 300;
+    }
+
+    .card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 2rem;
+      margin: 1.5rem 0;
+      box-shadow: var(--shadow-card);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-blue), transparent);
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: var(--shadow-card), var(--shadow-glow);
+      border-color: var(--accent-blue);
+    }
+
+    label {
+      display: block;
+      margin: 1rem 0 0.5rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      font-size: 1.1rem;
+    }
+
+    input[type="file"] {
+      padding: 1.5rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 2px dashed var(--accent-blue);
+      border-radius: 15px;
+      width: 100%;
+      color: var(--text-primary);
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    input[type="file"]:hover {
+      border-color: var(--accent-blue-dark);
+      background: rgba(0, 212, 255, 0.1);
+    }
+
+    .row {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin: 1rem 0;
+    }
+
+    .col {
+      flex: 1;
+      min-width: 250px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      margin-top: 1.5rem;
+    }
+
+    button {
+      background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
+      color: var(--text-primary);
+      border: none;
+      border-radius: 12px;
+      padding: 1rem 2rem;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 1rem;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 4px 15px rgba(0, 212, 255, 0.3);
+    }
+
+    button::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+      transition: left 0.5s;
+    }
+
+    button:hover::before {
+      left: 100%;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 212, 255, 0.4);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button:disabled {
+      background: var(--text-muted);
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .translate-btn {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+    }
+
+    .translate-btn:hover {
+      box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+    }
+
+    .listen-btn {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+      margin-left: 1rem;
+    }
+
+    .listen-btn:hover {
+      box-shadow: 0 8px 25px rgba(245, 158, 11, 0.4);
+    }
+
+    .translate-section {
+      background: linear-gradient(135deg, rgba(0, 212, 255, 0.1) 0%, rgba(99, 102, 241, 0.1) 100%);
+      border: 1px solid var(--accent-blue);
+      border-radius: 15px;
+      padding: 2rem;
+      margin: 2rem 0;
+      position: relative;
+    }
+
+    .translate-section::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, rgba(0, 212, 255, 0.05) 0%, rgba(99, 102, 241, 0.05) 100%);
+      border-radius: 15px;
+      z-index: -1;
+    }
+
+    .language-selector {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      margin: 1.5rem 0;
+      flex-wrap: wrap;
+    }
+
+    .language-selector select,
+    .language-selector input {
+      padding: 0.75rem 1rem;
+      border-radius: 10px;
+      border: 1px solid var(--border-color);
+      background: var(--glass-bg);
+      color: var(--text-primary);
+      font-size: 1rem;
+      backdrop-filter: blur(10px);
+      transition: all 0.3s ease;
+    }
+
+    .language-selector select:focus,
+    .language-selector input:focus {
+      outline: none;
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+    }
+
+    .language-selector input {
+      width: 120px;
+    }
+
+    audio {
+      width: 100%;
+      margin-top: 1rem;
+      border-radius: 10px;
+    }
+
+    .note {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    .badge {
+      display: inline-block;
+      background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
+      color: var(--text-primary);
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      margin-right: 0.5rem;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      box-shadow: 0 2px 10px rgba(0, 212, 255, 0.3);
+    }
+
+    .footer {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      text-align: center;
+      margin-top: 3rem;
+      padding: 2rem 0;
+      border-top: 1px solid var(--border-color);
+    }
+
+    h3 {
+      margin: 1.5rem 0 1rem;
+      font-size: 1.5rem;
+      color: var(--text-primary);
+      font-weight: 700;
+    }
+
+    .text-display {
+      background: var(--glass-bg);
+      backdrop-filter: blur(10px);
+      padding: 1.5rem;
+      border-radius: 15px;
+      max-height: 300px;
+      overflow-y: auto;
+      line-height: 1.6;
+      border: 1px solid var(--glass-border);
+      font-size: 1rem;
+    }
+
+    .text-display::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .text-display::-webkit-scrollbar-track {
+      background: var(--secondary-bg);
+      border-radius: 4px;
+    }
+
+    .text-display::-webkit-scrollbar-thumb {
+      background: var(--accent-blue);
+      border-radius: 4px;
+    }
+
+    .translated-text {
+      border-left: 4px solid var(--accent-blue);
+      background: linear-gradient(135deg, rgba(0, 212, 255, 0.05) 0%, transparent 100%);
+    }
+
+    .original-text {
+      border-left: 4px solid #10b981;
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, transparent 100%);
+    }
+
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid var(--border-color);
+      border-top: 3px solid var(--accent-blue);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .fade-in {
+      animation: fadeIn 0.6s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .pulse {
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 20px 15px;
+      }
+      
+      h1 {
+        font-size: 2.5rem;
+      }
+      
+      .card {
+        padding: 1.5rem;
+      }
+      
+      .language-selector {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      
+      .actions {
+        flex-direction: column;
+        align-items: stretch;
+      }
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>🗣️ Document-to-Speech Assistant</h1>
-    <p>Upload a PDF, DOCX, TXT, or image. We'll extract the text and read it aloud. Optional: summarize & translate.</p>
+    <h1 class="fade-in">🗣️ Document-to-Speech Assistant</h1>
+    <p class="subtitle fade-in">Upload a PDF, DOCX, TXT, or image. We'll extract the text and read it aloud. Optional: summarize & translate.</p>
 
-    <form method="POST" enctype="multipart/form-data" class="card">
-      <label for="file">Choose file</label>
+    <form method="POST" enctype="multipart/form-data" class="card fade-in">
+      <label for="file">📁 Choose File</label>
       <input type="file" id="file" name="file" required>
       <div class="row">
         <div class="col">
-          <label><input type="checkbox" name="want_summary"> Summarize before audio</label>
+          <label><input type="checkbox" name="want_summary"> 📝 Summarize before audio</label>
           <span class="note">Uses a lightweight summarizer (if available).</span>
         </div>
       </div>
       <div class="actions">
-        <button type="submit">Upload → Extract Text</button>
+        <button type="submit">🚀 Upload → Extract Text</button>
         <span class="note">Max 25 MB. Allowed: pdf, docx, txt, png, jpg, jpeg, tiff.</span>
       </div>
     </form>
 
     {% if original_text %}
-    <div class="card">
+    <div class="card fade-in">
       <div>
-        <span class="badge">Source: {{ src_lang or 'unknown' }}</span>
-        {% if translated_text %}<span class="badge">Target: {{ target_lang or 'unknown' }}</span>{% endif %}
-        <span class="badge">{{ chars }} chars</span>
+        <span class="badge">🌍 Source: {{ src_lang or 'unknown' }}</span>
+        {% if translated_text %}<span class="badge">🎯 Target: {{ target_lang or 'unknown' }}</span>{% endif %}
+        <span class="badge">📊 {{ chars }} chars</span>
       </div>
       
       <div style="margin: 16px 0;">
@@ -116,18 +480,18 @@
       {% endif %}
       
       <!-- Translation Section -->
-      <div class="translate-section">
+      <div class="translate-section fade-in">
         <h3>🌐 Translate Document</h3>
         <div class="language-selector">
-          <label>Translate to:</label>
+          <label>🎯 Translate to:</label>
           <select id="targetLang">
-            <option value="hi">Hindi (hi)</option>
-            <option value="ta">Tamil (ta)</option>
-            <option value="es">Spanish (es)</option>
-            <option value="fr">French (fr)</option>
-            <option value="de">German (de)</option>
-            <option value="en">English (en)</option>
-            <option value="custom">Custom...</option>
+            <option value="hi">🇮🇳 Hindi (hi)</option>
+            <option value="ta">🇮🇳 Tamil (ta)</option>
+            <option value="es">🇪🇸 Spanish (es)</option>
+            <option value="fr">🇫🇷 French (fr)</option>
+            <option value="de">🇩🇪 German (de)</option>
+            <option value="en">🇺🇸 English (en)</option>
+            <option value="custom">🔧 Custom...</option>
           </select>
           <input type="text" id="customLang" placeholder="e.g., ja, ko" style="display: none;">
         </div>
@@ -139,10 +503,33 @@
     </div>
     {% endif %}
 
-    <div class="footer">Built with Flask · OCR + NLP + TTS pipeline</div>
+    <div class="footer fade-in">
+      <p>✨ Built with Flask · OCR + NLP + TTS pipeline</p>
+      <p>🚀 Powered by AI Translation & Speech Synthesis</p>
+    </div>
   </div>
 
   <script>
+    // Add smooth animations and enhanced UX
+    document.addEventListener('DOMContentLoaded', function() {
+      // Add staggered fade-in animations
+      const cards = document.querySelectorAll('.card');
+      cards.forEach((card, index) => {
+        card.style.animationDelay = `${index * 0.1}s`;
+      });
+
+      // Add hover effects to file input
+      const fileInput = document.getElementById('file');
+      if (fileInput) {
+        fileInput.addEventListener('change', function() {
+          if (this.files.length > 0) {
+            this.style.borderColor = 'var(--accent-blue)';
+            this.style.background = 'rgba(0, 212, 255, 0.1)';
+          }
+        });
+      }
+    });
+
     // Handle custom language input (only if translate UI is present)
     const targetSelect = document.getElementById('targetLang');
     if (targetSelect) {
